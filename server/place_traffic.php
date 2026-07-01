@@ -21,10 +21,16 @@ $sql = "CREATE TABLE IF NOT EXISTS " . TABLE . " (
     place_name varchar(100) NOT NULL DEFAULT '',
     keyword varchar(200) NOT NULL DEFAULT '',
     daily_count int(11) NOT NULL DEFAULT 100,
+    visit_type varchar(30) NOT NULL DEFAULT 'naver_place',
     is_active tinyint(1) NOT NULL DEFAULT 1,
     created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4";
+// 기존 테이블에 visit_type 컬럼이 없으면 추가 (ALTER TABLE은 IF NOT EXISTS 미지원)
+$col_check = sql_fetch("SELECT COUNT(*) as cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='" . TABLE . "' AND COLUMN_NAME='visit_type'");
+if ((int)($col_check['cnt'] ?? 0) === 0) {
+    sql_query("ALTER TABLE " . TABLE . " ADD COLUMN visit_type varchar(30) NOT NULL DEFAULT 'naver_place' AFTER daily_count");
+}
 sql_query($sql);
 
 $msg = '';
@@ -32,13 +38,16 @@ $msg = '';
 // ── 처리 ────────────────────────────────────────────
 $act = $_POST['act'] ?? $_GET['act'] ?? '';
 
+$allowed_visit_types = ['naver_place', 'naver_map', 'naver_store', 'naver_website'];
+
 if ($act === 'add') {
     $place_id    = trim($_POST['place_id'] ?? '');
     $place_name  = trim($_POST['place_name'] ?? '');
     $keyword     = trim($_POST['keyword'] ?? '');
     $daily_count = (int)($_POST['daily_count'] ?? 100);
+    $visit_type  = in_array($_POST['visit_type'] ?? '', $allowed_visit_types) ? $_POST['visit_type'] : 'naver_place';
     if ($place_id && $keyword) {
-        $sql = "INSERT INTO " . TABLE . " (place_id, place_name, keyword, daily_count) VALUES ('".addslashes($place_id)."', '".addslashes($place_name)."', '".addslashes($keyword)."', $daily_count)";
+        $sql = "INSERT INTO " . TABLE . " (place_id, place_name, keyword, daily_count, visit_type) VALUES ('".addslashes($place_id)."', '".addslashes($place_name)."', '".addslashes($keyword)."', $daily_count, '".addslashes($visit_type)."')";
         sql_query($sql);
         $msg = '업체가 등록되었습니다.';
     } else {
@@ -58,8 +67,9 @@ if ($act === 'add') {
     $place_name  = trim($_POST['place_name'] ?? '');
     $keyword     = trim($_POST['keyword'] ?? '');
     $daily_count = (int)($_POST['daily_count'] ?? 100);
+    $visit_type  = in_array($_POST['visit_type'] ?? '', $allowed_visit_types) ? $_POST['visit_type'] : 'naver_place';
     if ($id && $place_id && $keyword) {
-        $sql = "UPDATE " . TABLE . " SET place_id='".addslashes($place_id)."', place_name='".addslashes($place_name)."', keyword='".addslashes($keyword)."', daily_count=$daily_count WHERE id=$id";
+        $sql = "UPDATE " . TABLE . " SET place_id='".addslashes($place_id)."', place_name='".addslashes($place_name)."', keyword='".addslashes($keyword)."', daily_count=$daily_count, visit_type='".addslashes($visit_type)."' WHERE id=$id";
         sql_query($sql);
         $msg = '수정되었습니다.';
     }
@@ -141,6 +151,23 @@ tr:hover td{background:#fafafa}
                 <label>검색 키워드</label>
                 <input type="text" name="keyword" placeholder="예: 경기도 불광사" required value="<?= htmlspecialchars($edit_row['keyword'] ?? '') ?>">
             </div>
+            <div class="form-group">
+                <label>방문 유형</label>
+                <select name="visit_type" style="border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-size:13px;width:160px">
+                    <?php
+                    $vt_options = [
+                        'naver_place'   => '네이버 플레이스',
+                        'naver_map'     => '네이버 지도',
+                        'naver_store'   => '스마트스토어',
+                        'naver_website' => '웹사이트',
+                    ];
+                    $cur_vt = $edit_row['visit_type'] ?? 'naver_place';
+                    foreach ($vt_options as $val => $label):
+                    ?>
+                    <option value="<?= $val ?>"<?= $cur_vt === $val ? ' selected' : '' ?>><?= $label ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <div class="form-group sm">
                 <label>하루 방문수</label>
                 <input type="number" name="daily_count" min="1" max="1000" value="<?= $edit_row['daily_count'] ?? 100 ?>">
@@ -175,6 +202,7 @@ tr:hover td{background:#fafafa}
                 <th>업체명</th>
                 <th>플레이스 ID</th>
                 <th>키워드</th>
+                <th>방문 유형</th>
                 <th>하루방문수</th>
                 <th>상태</th>
                 <th>관리</th>
@@ -187,6 +215,10 @@ tr:hover td{background:#fafafa}
             <td><strong><?= htmlspecialchars($r['place_name'] ?: '-') ?></strong></td>
             <td><code><?= htmlspecialchars($r['place_id']) ?></code></td>
             <td><?= htmlspecialchars($r['keyword']) ?></td>
+            <td><?php
+                $vt_labels = ['naver_place'=>'네이버 플레이스','naver_map'=>'네이버 지도','naver_store'=>'스마트스토어','naver_website'=>'웹사이트'];
+                echo htmlspecialchars($vt_labels[$r['visit_type'] ?? 'naver_place'] ?? $r['visit_type']);
+            ?></td>
             <td style="text-align:center"><?= number_format($r['daily_count']) ?>회</td>
             <td>
                 <span class="badge <?= $r['is_active'] ? 'badge-on' : 'badge-off' ?>">

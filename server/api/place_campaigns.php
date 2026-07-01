@@ -20,14 +20,15 @@ header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
 $tbl = $g5['table_prefix'] . 'place_campaign';
-$res = sql_query("SELECT place_id, place_name, keyword, daily_count FROM `{$tbl}` WHERE is_active = 1 ORDER BY id ASC");
+$res = sql_query("SELECT place_id, place_name, keyword, daily_count, visit_type FROM `{$tbl}` WHERE is_active = 1 ORDER BY id ASC");
 $out = [];
 while ($r = sql_fetch_array($res)) {
     $out[] = [
-        'placeId'  => $r['place_id'],
-        'keyword'  => $r['keyword'],
-        'count'    => (int)$r['daily_count'],
-        'name'     => $r['place_name'],
+        'placeId'   => $r['place_id'],
+        'keyword'   => $r['keyword'],
+        'count'     => (int)$r['daily_count'],
+        'name'      => $r['place_name'],
+        'visitType' => $r['visit_type'] ?: 'naver_place',
     ];
 }
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
