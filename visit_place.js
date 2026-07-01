@@ -130,8 +130,9 @@ async function oneVisit(idx) {
 }
 
 (async () => {
+  const TAG = `[${PLACE_ID}] "${KEYWORD}"`;
   console.log(`\n▶ 플레이스 키워드 유입 v5`);
-  console.log(`  place     : ${PLACE_ID}`);
+  console.log(`  업체      : ${PLACE_ID}`);
   console.log(`  키워드    : "${KEYWORD}"`);
   console.log(`  횟수      : ${COUNT}회 / 체류: ${DWELL_SEC}s`);
   console.log(`  동시실행  : ${CONCURRENCY}개`);
@@ -153,13 +154,13 @@ async function oneVisit(idx) {
     ));
 
     for (const r of results) {
-      const proxyStr = r.proxy ? `[${r.proxy}]` : '[직접]';
+      const proxyStr = r.proxy ? r.proxy : '직접';
       if (r.ok) {
         ok++;
-        console.log(`[${r.num}/${COUNT}] ✅ nlog ${r.nlog}건 | ${r.channel} | ${proxyStr}`);
+        console.log(`${TAG} [${r.num}/${COUNT}] ✅ nlog ${r.nlog}건 | ${r.channel} | ${proxyStr}`);
       } else {
         fail++;
-        console.log(`[${r.num}/${COUNT}] ❌ ${r.err} | ${proxyStr}`);
+        console.log(`${TAG} [${r.num}/${COUNT}] ❌ ${r.err} | ${proxyStr}`);
       }
       channelCount[r.channel] = (channelCount[r.channel] || 0) + 1;
     }
