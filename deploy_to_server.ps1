@@ -4,7 +4,7 @@
 # 사용법: .\deploy_to_server.ps1
 
 # ── DB 비밀번호 읽기 (dbconfig.php에서) ──────────────
-$dbconfigPath = "C:\Users\User\OneDrive\바탕 화면\workspace\traffic-program\data\dbconfig.php"
+$dbconfigPath = "C:\Users\User\OneDrive\바탕 화면\workspace\connector\data\dbconfig.php"
 if (-not (Test-Path $dbconfigPath)) {
     Write-Host "dbconfig.php를 찾을 수 없습니다: $dbconfigPath" -ForegroundColor Red
     exit 1
