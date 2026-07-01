@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-07-01 오후 — 배포 상태 점검 + 로컬 테스트 성공
+
+### 확인한 내용
+
+**1. 서버(dnotraffic.com) 배포 상태 — 정상 라이브 확인됨**
+- `curl "https://dnotraffic.com/api/place_campaigns.php?key=DNO_PLACE_2024"` → HTTP 200, `[]` 응답
+  - API 자체는 정상 동작. `[]`인 이유는 `g5_place_campaign` 테이블에 `is_active=1`인 캠페인이 아직 하나도 없어서 (정상 — 캠페인 미등록 상태)
+  - 잘못된 key로 호출 시 `{"error":"forbidden"}` (403) — 인증도 정상
+- `curl "https://dnotraffic.com/place_traffic.php"` → HTTP 302 (관리자 로그인 필요 리다이렉트) → **어드민 페이지도 이미 라이브 배포되어 있음**
+- `curl "https://dnotraffic.com/install.php"` → HTTP 404 → 설치 스크립트는 이미 삭제됨 (install.php 안내문대로 설치 후 보안상 삭제한 것 — 정상)
+- **결론: 메모리에 기록된 "배포 완료" 사실임. `g5_place_campaign` 테이블 + `place_traffic.php`(어드민) + `api/place_campaigns.php` 전부 서버에 이미 올라가 있고 정상 작동 중.**
+
+**2. 어드민 페이지 존재 확인 — 새로 만들 필요 없음**
+- `https://dnotraffic.com/place_traffic.php` 가 이미 캠페인 등록 UI임 (그누보드 슈퍼관리자 로그인 필요, `is_admin('super')` 체크)
+- 기능: 업체 등록/수정/삭제/활성-중지 토글, 플레이스ID + 검색키워드 + 하루방문수 입력 폼
+- `server/install.php`, `server/skin_boot.php` 두 파일 모두 이 place_traffic.php를 생성하는 1회성 설치 스크립트 (이미 실행 완료된 것으로 보임, 로컬에만 untracked로 남아있음)
+
+**3. 로컬 코드 정리 + 커밋 (커밋 8a87a15)**
+- `server/api/place_campaigns.php`: 기존엔 직접 mysqli로 DB 접속하던 것을, gnuboard `common.php` + `sql_query()`/`sql_fetch_array()` 방식으로 리팩터링된 상태였음 → 검토 후 문제없음을 확인하고 커밋함 (서버엔 아직 미배포, 로컬 git에만 반영)
+- `deploy_to_server.ps1`: dbconfig.php 참조 경로가 `traffic-program/data/dbconfig.php`(현재 존재하지 않음, 프로젝트에서 삭제된 것으로 보임)로 되어 있던 버그를 `connector/data/dbconfig.php`(실존 확인함)로 수정된 상태 → 정상적인 버그 수정으로 판단, 커밋함
+- **주의: 이번 리팩터링된 place_campaigns.php는 서버에 아직 FTP 배포 안 됨.** 서버엔 여전히 예전 mysqli 버전이 돌고 있고 (정상 작동 중이니 급하지 않음), 다음에 배포하려면 deploy-to-server 스킬로 서버 반영 필요.
+
+**4. 로컬 테스트 실행 — 성공**
+- Node.js v24.15.0, playwright ^1.61.0 설치되어 있고 `node_modules/`도 이미 존재
+- Playwright 크로미움 브라우저도 이미 설치돼 있음 (`ms-playwright/chromium-1223`, `chromium-1228` 등)
+- 소규모 테스트 (`campaigns.json` 1개 캠페인 count=1, 프록시 1개, 동시실행 1, 체류 10초) 실행 → **성공**
+  - 결과: `[18000102] "경기도 불광사" [1/1] ✅ nlog 3건 | 네이버검색 | 115.144.231.181:28093`
+  - 사용한 프록시(115.144.231.181:28093)는 정상 작동함 — 2026-06-23 기록에 있던 "프록시 300개 전부 429 차단" 상태는 **현재는 해소된 것으로 보임** (최소 1개는 살아있음을 확인. 전체 300개 상태까지는 확인 안 했음 — 대량 실행 전 소규모로 몇 개 더 테스트해보는 걸 권장)
+
+### 다음 할 일
+
+1. **캠페인 등록**: `place_traffic.php` 관리자 페이지에서 실제 캠페인 등록 (아래 사용자 안내문 참고)
+2. **VM(제온 PC)에서 워커 실행**: Node.js + `npm install` (playwright 포함) + `npx playwright install chromium` 필요. 파일은 `place-traffic` 폴더 전체를 VM에 복사
+3. (선택) 리팩터링된 `server/api/place_campaigns.php`를 서버에 배포하고 싶다면 deploy-to-server 스킬 사용 — 단, 지금 상태로도 서버는 정상 작동 중이라 급하지 않음
+4. 프록시 300개 전체의 생존율 재점검 권장 (지금은 1개만 확인함)
+
+---
+
 ## 2026-06-18 (퇴근 후 자동 진행)
 
 ### 작업 요약
