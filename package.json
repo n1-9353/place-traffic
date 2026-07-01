@@ -1,0 +1,16 @@
+{
+  "name": "place-traffic",
+  "version": "1.0.0",
+  "description": "fastraffic.co.kr 기능 분석 후 동일 기능 자체 구현 버전.",
+  "main": "ncaptcha_token.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright": "^1.61.0"
+  }
+}
