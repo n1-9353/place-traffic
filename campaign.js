@@ -50,7 +50,7 @@ function pcmapUrl(placeId, kw) {
 // ── 방문 함수 ─────────────────────────────────────────
 async function oneVisit({ proxy, placeId, keyword }) {
   const browser = await chromium.launch({
-    headless: false,
+    headless: process.env.HEADLESS !== '0',
     proxy: { server: `http://${proxy}` },
     args: ['--no-sandbox', '--disable-blink-features=AutomationControlled', '--lang=ko-KR,ko'],
   });
