@@ -1,6 +1,18 @@
 # HAND_OFF
 
 ---
+## 2026-07-01 (1차) — visit_type 다중 방문유형 지원
+
+### 변경 파일
+- campaign.js: visit_type 필드 지원 추가 (naver_place/naver_map/naver_store/naver_website)
+- api/place_campaigns.php: visit_type 컬럼 + API 응답에 visit_type 포함
+- place_traffic.php: 캠페인 등록 시 visit_type 드롭다운 추가 (있는 경우)
+
+### 배포 필요
+- place-traffic 코드를 제온 리눅스 머신에 rsync/scp 배포
+- 실행: node campaign.js "API_URL" 프록시.txt 30 60
+
+---
 
 ## 2026-07-01 저녁 — 캠페인 2건 등록 완료 + 로컬 검증 + 프록시 생존율 확인 → 대량 실행 가능 판정
 
