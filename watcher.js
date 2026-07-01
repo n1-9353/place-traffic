@@ -63,8 +63,10 @@ function startWorker(campaigns) {
   proc.on('exit', (code) => {
     console.log(`[watcher] campaign.js 종료 (exit ${code})`);
     proc = null;
-    // 종료 후 현재 목록으로 바로 재시작
-    if (!restarting) {
+    // exit 0 = 정상완료 → 재시작 안 함 (다음날 캠페인 변경 시 재시작)
+    // exit 0 이 아닐 때만 (크래시 등) 재시작
+    if (!restarting && code !== 0) {
+      console.log(`[watcher] 비정상 종료 — 3초 후 재시작`);
       setTimeout(() => {
         fetchCampaigns().then(c => { lastSig = signature(c); startWorker(c); }).catch(() => {});
       }, 3000);
