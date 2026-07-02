@@ -70,15 +70,48 @@ async function visitNaverPlace(page, campaign, dwellSec) {
   await page.goto('https://www.naver.com', { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.waitForTimeout(800 + Math.random() * 400);
 
-  await page.goto(sUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(2000 + Math.random() * 1000);
+  await page.goto(sUrl, { waitUntil: 'networkidle', timeout: 30000 }).catch(() =>
+    page.goto(sUrl, { waitUntil: 'domcontentloaded', timeout: 20000 })
+  );
+  // 플레이스 섹션 lazy load 대기
+  await page.waitForTimeout(4000 + Math.random() * 1500);
 
-  const placeLink = await page.$(`a[href*="${placeId}"]`);
+  // 셀렉터 후보 (네이버 DOM 변동 대비)
+  const selectors = [
+    `a[href*="place.naver.com/place/${placeId}"]`,
+    `a[href*="m.place.naver.com/place/${placeId}"]`,
+    `a[href*="pcmap.place.naver.com/place/${placeId}"]`,
+    `a[href*="${placeId}"]`,
+    `.place_bluelink[href*="${placeId}"]`,
+    `[data-nclk-place-id="${placeId}"] a`,
+  ];
+
+  // 메인 페이지 탐색
+  let placeLink = null;
+  for (const sel of selectors) {
+    placeLink = await page.$(sel).catch(() => null);
+    if (placeLink) break;
+  }
+
+  // iframe 내부 탐색 (네이버 검색은 일부 섹션을 iframe으로 렌더링)
+  if (!placeLink) {
+    for (const frame of page.frames()) {
+      for (const sel of selectors) {
+        try {
+          placeLink = await frame.$(sel);
+          if (placeLink) break;
+        } catch {}
+      }
+      if (placeLink) break;
+    }
+  }
+
   if (placeLink) {
     channel = '네이버검색';
     await placeLink.click();
-    await page.waitForLoadState('load', { timeout: 30000 });
+    await page.waitForLoadState('load', { timeout: 30000 }).catch(() => {});
   } else {
+    // fallback: pcmap 직접 접속 (검색 페이지를 referer로 설정)
     channel = '직접(네이버지도)';
     const res = await page.goto(pUrl, { waitUntil: 'load', timeout: 30000, referer: sUrl });
     if ((res?.status() ?? 0) === 429) return { ok: false, err: '429', channel };
