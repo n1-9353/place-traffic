@@ -1,6 +1,59 @@
 # HAND_OFF
 
 ---
+## 2026-07-03 — 귀속 구조 완전 해부 + 웹 봇 한계 확정
+
+### 핵심 결론 (데이터로 증명됨)
+
+**웹 브라우저 자동화(Playwright)로는 "네이버검색+키워드" 귀속 불가능 — 구조적 한계**
+
+근거:
+1. **`svc:"mapplace"` 고정** — 웹에서 플레이스 상세 진입 시 nlog 비콘의 `svc` 필드가 항상 `mapplace` → 채널은 무조건 "네이버지도". PC pcmap이든 m.place든 동일. `bk_query` URL 파라미터는 비콘에 미반영.
+2. **`ch_brs:HeadlessChrome` 노출** — Playwright headless 사용 시 매 비콘마다 `ch_brs:[{"brand":"HeadlessChrome","version":"149"}]` 전송 → 네이버 봇 필터 → 40회 중 4회(10%)만 집계됨.
+
+### 한 일
+
+**1. probe.js — 4가지 진입 경로 nlog 비콘 비교 (커밋 bc50228)**
+- S1 pcmap 직행: nlog 0건 → 귀속 없음
+- S2 PC 검색 앵커 클릭: `from=map` 라우팅 → 지도
+- S3 모바일 검색 앵커 클릭: `bk_query=키워드` + nlog 3건 → ✅ 정답 경로지만 아래 문제로 집계 실패
+
+**2. probe_nlog.js — nlog POST body 원문 덤프 (커밋 23c72c7)**
+```
+[S3_mobile_click]:
+  nlog #3 body: {"svc":"mapplace", ..., "ch_brs":[{"brand":"HeadlessChrome","version":"149"},...]}
+```
+→ `svc:"mapplace"` = 채널 결정 필드 (웹 플레이스 방문은 항상 이 값)
+→ `ch_brs:HeadlessChrome` = 봇 식별 → 집계 필터
+
+**3. campaign_mobile.js — S3 경로 40회 실험**
+- 40/40 성공(착지), nlog 3건 발사, `bk_query=키워드` URL 보존
+- **결과: 7/2 대시보드 4회만 집계, 전부 "네이버지도", 유입키워드 0**
+
+**4. 신규 파일 3개 커밋**
+- `campaign_mobile.js` — 모바일 검색→클릭 워커
+- `probe_nlog.js` — nlog body 덤퍼
+- `rank_tracker.js` — pcmap 순위 측정 (JSONL 기록)
+- `INTEGRATION_CONTRACT.md` — 두 세션 경계 계약 (Session A=웹방문, B=앱기반)
+
+### 현재 상태 (세션 종료 시점)
+- ⛔ watcher.js/campaign.js 중지 (실험 종료 후 수동 킬, PC cron도 comment-out 상태)
+- ✅ 웹 봇 한계 확정 → 더 이상 웹으로 키워드 귀속 시도 불필요
+- ✅ 볼륨 트래픽(지도 채널)이 목적이라면 patchright + 실제 Chrome binary로 `ch_brs` 제거 후 재시도 가능 — 단, 채널은 여전히 지도
+
+### 다음 방향
+**웹 봇 역할 재정의:**
+- `probe.js` + `probe_nlog.js` → 앱 기반 트래픽이 "네이버검색+키워드"로 잡히는지 검증용 계측기
+- `rank_tracker.js` → 순위 효과 관찰
+- `INTEGRATION_CONTRACT.md` → 앱 트랙 세션과 경계 정의됨
+
+**키워드 귀속·순위 트래픽** → `naver-app-android-track` 세션(redroid + uiautomator2)이 정답. 앱 내 검색→플레이스 진입은 `svc` 값이 달라야 함 — 신규 세션에서 nlog `svc` 필드 동일하게 떠서 검증.
+
+### SSH 헬퍼 (다음 세션 필요 시)
+upload2.js는 세션 스크래치패드에만 있음 — 새 세션에서 필요하면 재작성.
+리눅스 머신: `dno1@10.0.1.7` (SSH), 작업폴더 `/home/dno1/place-traffic/`
+
+---
 ## 2026-07-01 (2차) — watcher.js 배포 + 리눅스 머신 실제 실행 확인
 
 ### 한 일
